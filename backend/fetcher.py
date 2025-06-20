@@ -50,6 +50,7 @@ def fetch_instruments(currency: str):
         "expired": "false"  # API expects a string, not a boolean
     })
     data = response.json()
+    print(f"fetch_instruments({currency}) count: {len(data.get('result', []))}")
     if "result" in data:
         return data["result"]
     else:
@@ -69,6 +70,9 @@ def fetch_greeks(instrument_name: str):
 
 def get_gex_data(currency: str = "BTC"):
     instruments = fetch_instruments(currency)
+    print(f"{currency} instruments count: {len(instruments)}")
+    for inst in instruments[:5]:
+        print(f"Sample instrument: {inst}")
     spot_price = fetch_spot_price(currency)
     if not instruments:
         return { "data": [], "zero_gamma": None, "call_wall": None, "put_wall": None, "expiration_date": None }
@@ -80,11 +84,14 @@ def get_gex_data(currency: str = "BTC"):
     gex_by_strike = defaultdict(lambda: {"oi": {"call_gex": 0, "put_gex": 0}, "vol": {"call_gex": 0, "put_gex": 0}})
     # 用并发批量抓取greeks
     filtered_instruments = [inst for inst in instruments if inst.get("expiration_timestamp") == closest_expiration_ts]
+    print(f"Filtered instruments for closest expiration: {len(filtered_instruments)}")
     with concurrent.futures.ThreadPoolExecutor(max_workers=16) as executor:
         greeks_results = list(executor.map(
             lambda inst: (inst, fetch_greeks(inst["instrument_name"])),
             filtered_instruments
         ))
+    for inst, greeks in greeks_results[:5]:
+        print(f"Sample greeks for {inst['instrument_name']}: {greeks}")
     for inst, greeks in greeks_results:
         try:
             if greeks is None:
