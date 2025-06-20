@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ReferenceLine, ResponsiveContainer } from "recharts";
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ReferenceLine, ResponsiveContainer, Legend } from "recharts";
 import axios from "axios";
 
 // API基础URL配置
@@ -73,23 +73,26 @@ const App = () => {
       ) : (
         <div className="bg-white rounded-lg shadow-lg p-6">
           <ResponsiveContainer width="100%" height={500}>
-            <BarChart data={data} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
+            <BarChart data={data} margin={{ top: 20, right: 40, left: 30, bottom: 20 }}>
               <XAxis 
                 dataKey="strike" 
                 type="number" 
                 domain={["auto", "auto"]}
                 label={{ value: 'Strike Price', position: 'insideBottom', offset: -10 }}
+                tickFormatter={(tick) => tick.toLocaleString()}
               />
               <YAxis 
-                label={{ value: 'Gamma Exposure', angle: -90, position: 'insideLeft' }}
+                label={{ value: 'GEX (in millions USD)', angle: -90, position: 'insideLeft', offset: -10 }}
+                tickFormatter={(tick) => `${(tick / 1_000_000).toFixed(1)}M`}
               />
               <Tooltip 
                 formatter={(value, name) => [
-                  value?.toLocaleString() || value, 
+                  `$${(value).toFixed(2)}M`,
                   name === 'call_gex' ? 'Call GEX' : 'Put GEX'
                 ]}
-                labelFormatter={(label) => `Strike: ${label}`}
+                labelFormatter={(label) => `Strike: ${label.toLocaleString()}`}
               />
+              <Legend verticalAlign="top" wrapperStyle={{ paddingBottom: '20px' }} />
               <Bar dataKey="call_gex" fill="#4ade80" stackId="gex" name="Call GEX" />
               <Bar dataKey="put_gex" fill="#f87171" stackId="gex" name="Put GEX" />
               {zeroGamma && (
@@ -97,7 +100,7 @@ const App = () => {
                   x={zeroGamma} 
                   stroke="#facc15" 
                   strokeWidth={2}
-                  label={{ value: "Zero Gamma", position: "top" }}
+                  label={{ value: `Zero Gamma: ${zeroGamma.toLocaleString()}`, position: "top", fill: '#ca8a04' }}
                 />
               )} 
               {callWall && (
@@ -106,7 +109,7 @@ const App = () => {
                   stroke="#22c55e" 
                   strokeWidth={2}
                   strokeDasharray="5 5"
-                  label={{ value: "Call Wall", position: "top" }}
+                  label={{ value: `Call Wall: ${callWall.toLocaleString()}`, position: "top", fill: '#166534', dy: -20 }}
                 />
               )} 
               {putWall && (
@@ -115,7 +118,7 @@ const App = () => {
                   stroke="#ef4444" 
                   strokeWidth={2}
                   strokeDasharray="5 5"
-                  label={{ value: "Put Wall", position: "top" }}
+                  label={{ value: `Put Wall: ${putWall.toLocaleString()}`, position: "top", fill: '#991b1b', dy: 20 }}
                 />
               )} 
             </BarChart>
