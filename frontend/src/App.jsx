@@ -11,6 +11,9 @@ const App = () => {
   const [currency, setCurrency] = useState("BTC");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragStartY, setDragStartY] = useState(null);
+  const [dragStartDomain, setDragStartDomain] = useState(null);
 
   const fetchData = async () => {
     setLoading(true);
@@ -75,8 +78,38 @@ const App = () => {
     setYDomain([center - newRange / 2, center + newRange / 2]);
   };
 
+  const handleMouseDown = (e) => {
+    setIsDragging(true);
+    setDragStartY(e.clientY);
+    setDragStartDomain([...yDomain]);
+  };
+
+  const handleMouseMove = (e) => {
+    if (!isDragging) return;
+    const deltaY = e.clientY - dragStartY;
+    const chartHeight = document.getElementById('main-chart-area')?.offsetHeight || 400;
+    const [min, max] = dragStartDomain;
+    const range = max - min;
+    const pricePerPixel = range / chartHeight;
+    const offset = deltaY * pricePerPixel;
+    setYDomain([min + offset, max + offset]);
+  };
+
+  const handleMouseUp = () => {
+    setIsDragging(false);
+  };
+
   return (
-    <div className="flex flex-col md:flex-row h-screen bg-gray-900 text-white" onWheel={handleWheel}>
+    <div
+      id="main-chart-area"
+      className="flex flex-col md:flex-row h-screen bg-gray-900 text-white"
+      onWheel={handleWheel}
+      onMouseDown={handleMouseDown}
+      onMouseMove={handleMouseMove}
+      onMouseUp={handleMouseUp}
+      onMouseLeave={handleMouseUp}
+      style={{ cursor: isDragging ? 'ns-resize' : 'default' }}
+    >
       {/* Main Chart Area */}
       <div className="flex-grow p-4 flex flex-col">
         <div className="flex items-center justify-between mb-4">
