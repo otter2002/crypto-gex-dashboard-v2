@@ -45,7 +45,7 @@ def fetch_full_option_book(currency: str):
 def fetch_instruments(currency: str):
     """获取所有可用的期权合约"""
     response = requests.get(f"{DERIBIT_BASE}/public/get_instruments", params={
-        "currency": currency,
+        "currency": currency.upper(),
         "kind": "option",
         "expired": "false"  # API expects a string, not a boolean
     })
