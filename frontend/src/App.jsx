@@ -1,33 +1,27 @@
 import React, { useEffect, useState } from "react";
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ReferenceLine, ResponsiveContainer, Legend } from "recharts";
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ReferenceLine, ResponsiveContainer, Legend, CartesianGrid } from "recharts";
 import axios from "axios";
+import DataPanel from "./DataPanel"; // Import the new panel component
 
 // API基础URL配置
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
 
 const App = () => {
-  const [data, setData] = useState([]);
+  const [apiData, setApiData] = useState(null);
   const [currency, setCurrency] = useState("BTC");
-  const [zeroGamma, setZeroGamma] = useState(null);
-  const [callWall, setCallWall] = useState(null);
-  const [putWall, setPutWall] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [expirationDate, setExpirationDate] = useState(null);
 
   const fetchData = async () => {
     setLoading(true);
     setError(null);
     try {
       const response = await axios.get(`${API_BASE_URL}/gex?currency=${currency}`);
-      setData(response.data.data);
-      setZeroGamma(response.data.zero_gamma);
-      setCallWall(response.data.call_wall);
-      setPutWall(response.data.put_wall);
-      setExpirationDate(response.data.expiration_date);
+      setApiData(response.data);
     } catch (err) {
       console.error('API Error:', err);
-      setError('获取数据失败，请检查网络连接');
+      setError('Failed to fetch data. Please check the API connection.');
+      setApiData(null); // Clear old data on error
     } finally {
       setLoading(false);
     }
@@ -35,103 +29,79 @@ const App = () => {
 
   useEffect(() => {
     fetchData();
-    const interval = setInterval(fetchData, 30000); // 每30秒刷新一次
+    const interval = setInterval(fetchData, 60000); // Refresh every 60 seconds
     return () => clearInterval(interval);
   }, [currency]);
 
+  const { data, spot_price, zero_gamma, call_wall, put_wall, expiration_date } = apiData || {};
+
   return (
-    <div className="p-4 max-w-6xl mx-auto">
-      <h1 className="text-3xl font-bold mb-2 text-center">{currency} Gamma Exposure</h1>
-      {expirationDate && (
-        <h2 className="text-xl font-semibold mb-6 text-center text-gray-600">
-          Expiration: {expirationDate}
-        </h2>
-      )}
-      
-      <div className="mb-6 flex gap-4 justify-center items-center">
-        <select 
-          value={currency} 
-          onChange={e => setCurrency(e.target.value)} 
-          className="border px-4 py-2 rounded-lg bg-white shadow-sm"
-        >
-          <option value="BTC">Bitcoin (BTC)</option>
-          <option value="ETH">Ethereum (ETH)</option>
-          <option value="SOL">Solana (SOL)</option>
-        </select>
-        <button
-          onClick={fetchData}
-          disabled={loading}
-          className="bg-blue-500 hover:bg-blue-600 disabled:bg-gray-400 text-white px-6 py-2 rounded-lg shadow-sm transition-colors"
-        >
-          {loading ? '🔄 加载中...' : '🔄 手动刷新'}
-        </button>
+    <div className="flex flex-col md:flex-row h-screen bg-gray-900 text-white">
+      {/* Main Chart Area */}
+      <div className="flex-grow p-4 flex flex-col">
+        <div className="flex items-center justify-between mb-4">
+            <div>
+                <h1 className="text-2xl font-bold">{currency} Gamma Exposure</h1>
+                {expiration_date && <h2 className="text-lg text-gray-400">Expiration: {expiration_date}</h2>}
+            </div>
+            <div className="flex items-center gap-4">
+                <select 
+                    value={currency} 
+                    onChange={e => setCurrency(e.target.value)} 
+                    className="border border-gray-600 px-4 py-2 rounded-lg bg-gray-800 text-white shadow-sm"
+                >
+                    <option value="BTC">BTC</option>
+                    <option value="ETH">ETH</option>
+                    <option value="SOL">SOL</option>
+                </select>
+                <button
+                    onClick={fetchData}
+                    disabled={loading}
+                    className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-500 text-white px-5 py-2 rounded-lg shadow-sm transition-colors"
+                >
+                    {loading ? 'Loading...' : 'Refresh'}
+                </button>
+            </div>
+        </div>
+
+        {error && <div className="text-red-500 text-center">{error}</div>}
+        
+        {!apiData && loading && <div className="flex-grow flex justify-center items-center">Loading Chart...</div>}
+        
+        {apiData && data && (
+          <div className="flex-grow">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart
+                layout="vertical"
+                data={data}
+                margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
+                barCategoryGap="0%"
+              >
+                <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+                <XAxis type="number" stroke="#9ca3af" domain={['auto', 'auto']} />
+                <YAxis type="category" dataKey="strike" stroke="#9ca3af" width={80} />
+                <Tooltip
+                  cursor={{ fill: 'rgba(156, 163, 175, 0.1)' }}
+                  contentStyle={{ backgroundColor: '#1f2937', border: '1px solid #4b5563' }}
+                  labelStyle={{ color: '#d1d5db' }}
+                />
+                <Legend />
+                <Bar dataKey="call_gex" fill="#10B981" name="Call GEX" />
+                <Bar dataKey="put_gex" fill="#EF4444" name="Put GEX" />
+
+                {/* Reference Lines */}
+                {spot_price && <ReferenceLine y={spot_price} label={{ value: `Spot: ${spot_price}`, fill: 'white', position: 'insideTopLeft' }} stroke="white" strokeDasharray="3 3" />}
+                {zero_gamma && <ReferenceLine y={zero_gamma} label={{ value: `Zero Gamma: ${zero_gamma.toFixed(2)}`, fill: '#FBBF24', position: 'insideTopLeft' }} stroke="#FBBF24" />}
+                {call_wall && <ReferenceLine y={call_wall} label={{ value: 'Call Wall', fill: '#10B981', position: 'insideTopLeft' }} stroke="#10B981" strokeDasharray="5 5" />}
+                {put_wall && <ReferenceLine y={put_wall} label={{ value: 'Put Wall', fill: '#EF4444', position: 'insideTopLeft' }} stroke="#EF4444" strokeDasharray="5 5" />}
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        )}
       </div>
 
-      {error && (
-        <div className="mb-4 p-4 bg-red-100 border border-red-400 text-red-700 rounded-lg">
-          {error}
-        </div>
-      )}
-
-      {loading && data.length === 0 ? (
-        <div className="flex justify-center items-center h-96">
-          <div className="text-xl text-gray-500">加载中...</div>
-        </div>
-      ) : (
-        <div className="bg-white rounded-lg shadow-lg p-6">
-          <ResponsiveContainer width="100%" height={500}>
-            <BarChart data={data} margin={{ top: 20, right: 40, left: 30, bottom: 20 }}>
-              <XAxis 
-                dataKey="strike" 
-                type="number" 
-                domain={["auto", "auto"]}
-                label={{ value: 'Strike Price', position: 'insideBottom', offset: -10 }}
-                tickFormatter={(tick) => tick.toLocaleString()}
-              />
-              <YAxis 
-                label={{ value: 'GEX (in millions USD)', angle: -90, position: 'insideLeft', offset: -10 }}
-                tickFormatter={(tick) => `${(tick / 1_000_000).toFixed(1)}M`}
-              />
-              <Tooltip 
-                formatter={(value, name) => [
-                  `$${(value).toFixed(2)}M`,
-                  name === 'call_gex' ? 'Call GEX' : 'Put GEX'
-                ]}
-                labelFormatter={(label) => `Strike: ${label.toLocaleString()}`}
-              />
-              <Legend verticalAlign="top" wrapperStyle={{ paddingBottom: '20px' }} />
-              <Bar dataKey="call_gex" fill="#4ade80" stackId="gex" name="Call GEX" />
-              <Bar dataKey="put_gex" fill="#f87171" stackId="gex" name="Put GEX" />
-              {zeroGamma && (
-                <ReferenceLine 
-                  x={zeroGamma} 
-                  stroke="#facc15" 
-                  strokeWidth={2}
-                  label={{ value: `Zero Gamma: ${zeroGamma.toLocaleString()}`, position: "top", fill: '#ca8a04' }}
-                />
-              )} 
-              {callWall && (
-                <ReferenceLine 
-                  x={callWall} 
-                  stroke="#22c55e" 
-                  strokeWidth={2}
-                  strokeDasharray="5 5"
-                  label={{ value: `Call Wall: ${callWall.toLocaleString()}`, position: "top", fill: '#166534', dy: -20 }}
-                />
-              )} 
-              {putWall && (
-                <ReferenceLine 
-                  x={putWall} 
-                  stroke="#ef4444" 
-                  strokeWidth={2}
-                  strokeDasharray="5 5"
-                  label={{ value: `Put Wall: ${putWall.toLocaleString()}`, position: "top", fill: '#991b1b', dy: 20 }}
-                />
-              )} 
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-      )}
+      {/* Data Panel */}
+      <DataPanel apiData={apiData} />
     </div>
   );
 };

@@ -1,6 +1,8 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fetcher import get_gex_data  # 确保 fetcher.py 中有该函数
+from fetcher import fetch_full_option_book, fetch_spot_price
+from gex_calc import calculate_gex_details
+from cachetools import cached, TTLCache
 
 app = FastAPI()
 
@@ -13,6 +15,17 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# ✅ 设置一个1分钟的缓存
+cache = TTLCache(maxsize=10, ttl=60)
+
+@cached(cache)
+def get_cached_gex_data(currency: str):
+    """带缓存的数据获取函数"""
+    print(f"Fetching fresh data for {currency}...")
+    option_book = fetch_full_option_book(currency)
+    spot_price = fetch_spot_price(currency)
+    return calculate_gex_details(option_book, spot_price)
+
 @app.get("/")
 def home():
     return {"message": "GEX API is running"}
@@ -23,12 +36,9 @@ def gex(currency: str = "BTC"):
     主接口：返回某币种的 Gamma Exposure 数据
     """
     try:
-        return get_gex_data(currency.upper())
+        return get_cached_gex_data(currency.upper())
     except Exception as e:
-        return {
-            "error": str(e),
-            "data": [],
-            "zero_gamma": None,
-            "call_wall": None,
-            "put_wall": None
-        }
+        # 清除特定货币的缓存，以便下次可以重试
+        cache.pop(currency.upper(), None)
+        print(f"Error fetching data for {currency}: {e}")
+        return {"error": str(e), "data": []}
