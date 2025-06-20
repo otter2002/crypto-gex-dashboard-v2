@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ReferenceLine, ResponsiveContainer, Legend, CartesianGrid, Brush } from "recharts";
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ReferenceLine, ResponsiveContainer, Legend, CartesianGrid } from "recharts";
 import axios from "axios";
 import DataPanel from "./DataPanel"; // Import the new panel component
 
@@ -48,8 +48,35 @@ const App = () => {
   const maxPrice = Math.max(...allPrices);
   const padding = (maxPrice - minPrice) * 0.1 || 1000;
 
+  // Y轴缩放与ticks
+  const [yDomain, setYDomain] = useState([minPrice - padding, maxPrice + padding]);
+  const [ticks, setTicks] = useState([]);
+
+  useEffect(() => {
+    // 数据变化时重置domain和ticks
+    setYDomain([minPrice - padding, maxPrice + padding]);
+    // 自动生成稀疏ticks
+    const tickStep = Math.max(Math.round((maxPrice - minPrice) / 8 / 1000) * 1000, 1000);
+    const newTicks = [];
+    for (let p = Math.ceil((minPrice - padding) / tickStep) * tickStep; p <= maxPrice + padding; p += tickStep) {
+      newTicks.push(Math.round(p));
+    }
+    setTicks(newTicks);
+  }, [minPrice, maxPrice]);
+
+  // 鼠标滚轮缩放
+  const handleWheel = (e) => {
+    e.preventDefault();
+    const [min, max] = yDomain;
+    const center = (min + max) / 2;
+    const range = (max - min);
+    const zoomFactor = e.deltaY < 0 ? 0.8 : 1.25;
+    const newRange = Math.max(range * zoomFactor, 100); // 最小区间100
+    setYDomain([center - newRange / 2, center + newRange / 2]);
+  };
+
   return (
-    <div className="flex flex-col md:flex-row h-screen bg-gray-900 text-white">
+    <div className="flex flex-col md:flex-row h-screen bg-gray-900 text-white" onWheel={handleWheel}>
       {/* Main Chart Area */}
       <div className="flex-grow p-4 flex flex-col">
         <div className="flex items-center justify-between mb-4">
@@ -98,7 +125,7 @@ const App = () => {
               >
                 <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
                 <XAxis type="number" stroke="#9ca3af" domain={['auto', 'auto']} />
-                <YAxis type="number" dataKey="strike" stroke="#9ca3af" width={80} reversed={true} domain={[minPrice - padding, maxPrice + padding]} allowDataOverflow={true} />
+                <YAxis type="number" dataKey="strike" stroke="#9ca3af" width={80} reversed={true} domain={yDomain} allowDataOverflow={true} ticks={ticks} />
                 <Tooltip
                   cursor={{ fill: 'rgba(156, 163, 175, 0.1)' }}
                   contentStyle={{ backgroundColor: '#1f2937', border: '1px solid #4b5563' }}
@@ -113,7 +140,6 @@ const App = () => {
                 {zero_gamma && <ReferenceLine y={zero_gamma} label={{ value: `${zero_gamma.toFixed(2)}`, fill: '#FBBF24', position: 'insideTopLeft' }} stroke="#FBBF24" />}
                 {call_wall && <ReferenceLine y={call_wall} label={{ value: `${call_wall}`, fill: '#10B981', position: 'insideTopLeft' }} stroke="#10B981" strokeDasharray="5 5" />}
                 {put_wall && <ReferenceLine y={put_wall} label={{ value: `${put_wall}`, fill: '#EF4444', position: 'insideTopLeft' }} stroke="#EF4444" strokeDasharray="5 5" />}
-                <Brush dataKey="strike" height={24} stroke="#8884d8" travellerWidth={10} />
               </BarChart>
             </ResponsiveContainer>
           </div>
