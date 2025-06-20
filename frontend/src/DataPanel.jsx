@@ -32,14 +32,12 @@ const DataPanel = ({ apiData }) => {
     expiration_date,
     last_update_time,
     // OI GEX
-    total_oi_call_gex,
-    total_oi_put_gex,
     net_oi_gex,
     // Volume GEX
     zero_gamma_vol,
-    total_vol_call_gex,
-    total_vol_put_gex,
-    net_vol_gex
+    net_vol_gex,
+    call_wall,
+    put_wall
   } = apiData;
 
   const updateTime = new Date(last_update_time).toLocaleTimeString();
@@ -57,8 +55,6 @@ const DataPanel = ({ apiData }) => {
         {/* GEX by Open Interest (持仓量) */}
         <div>
           <h3 className="font-bold text-lg mb-2 border-b border-gray-700 pb-1">GEX by Open Interest (持仓量)</h3>
-          <DataRow label="Major Positive" value={total_oi_call_gex} unit="M" color="text-green-400" />
-          <DataRow label="Major Negative" value={total_oi_put_gex} unit="M" color="text-red-400" />
           <DataRow label="Net GEX" value={net_oi_gex} unit="M" color={net_oi_gex > 0 ? 'text-green-400' : 'text-red-400'} />
         </div>
         
@@ -66,8 +62,8 @@ const DataPanel = ({ apiData }) => {
         <div>
           <h3 className="font-bold text-lg mb-2 border-b border-gray-700 pb-1">GEX by Volume (交易量)</h3>
           <DataRow label="Zero Gamma" value={zero_gamma_vol} />
-          <DataRow label="Major Positive" value={total_vol_call_gex} unit="M" color="text-green-400" />
-          <DataRow label="Major Negative" value={total_vol_put_gex} unit="M" color="text-red-400" />
+          <DataRow label="Major Positive (Call Wall)" value={call_wall} />
+          <DataRow label="Major Negative (Put Wall)" value={put_wall} />
           <DataRow label="Net GEX" value={net_vol_gex} unit="M" color={net_vol_gex > 0 ? 'text-green-400' : 'text-red-400'} />
         </div>
 
