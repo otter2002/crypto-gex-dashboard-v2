@@ -1,7 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fetcher import fetch_full_option_book, fetch_spot_price
-from gex_calc import calculate_gex_details
+from fetcher import get_gex_data, fetch_spot_price
 from cachetools import cached, TTLCache
 import json # Import json for pretty printing
 
@@ -22,17 +21,22 @@ cache = TTLCache(maxsize=10, ttl=60)
 @cached(cache)
 def get_processed_gex_data(currency: str):
     """
-    Fetches raw option data and spot price, then processes it to get GEX details.
-    This function is cached to avoid hitting the API too frequently.
+    直接调用 fetcher.py 中完整的GEX计算逻辑。
+    这个函数被缓存以提高性能。
     """
-    print(f"Fetching fresh data for {currency}...")
-    option_book = fetch_full_option_book(currency)
+    print(f"Fetching fresh GEX data for {currency}...")
+    # get_gex_data 已经包含了所有获取和计算的逻辑
+    gex_details = get_gex_data(currency)
+    
+    # 我们仍然可以单独获取现货价格并添加到最终结果中，以便前端使用
     spot_price = fetch_spot_price(currency)
     
-    if not option_book or spot_price is None:
-        raise Exception("Failed to fetch required data from Deribit.")
-        
-    return calculate_gex_details(option_book, spot_price)
+    # 将现货价格和最后更新时间添加到结果中
+    gex_details["spot_price"] = spot_price
+    from datetime import datetime
+    gex_details["last_update_time"] = datetime.utcnow().isoformat() + "Z"
+    
+    return gex_details
 
 @app.get("/")
 def home():
@@ -41,11 +45,13 @@ def home():
 @app.get("/gex")
 def gex(currency: str = "BTC"):
     """
-    Returns calculated GEX data for a given currency.
+    返回指定货币的GEX计算结果。
     """
     try:
+        # 统一使用大写
         return get_processed_gex_data(currency.upper())
     except Exception as e:
         # Log the error for debugging
         print(f"Error processing /gex request for {currency}: {e}")
-        return {"error": str(e)}
+        # 在真实错误发生时返回一个包含错误信息的JSON
+        return {"error": str(e), "data": [], "last_update_time": None}
