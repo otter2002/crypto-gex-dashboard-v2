@@ -86,7 +86,7 @@ const App = () => {
               >
                 <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
                 <XAxis type="number" stroke="#9ca3af" domain={['auto', 'auto']} />
-                <YAxis type="category" dataKey="strike" stroke="#9ca3af" width={80} reversed={true} />
+                <YAxis type="number" dataKey="strike" stroke="#9ca3af" width={80} reversed={true} />
                 <Tooltip
                   cursor={{ fill: 'rgba(156, 163, 175, 0.1)' }}
                   contentStyle={{ backgroundColor: '#1f2937', border: '1px solid #4b5563' }}
