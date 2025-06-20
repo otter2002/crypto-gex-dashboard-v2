@@ -11,12 +11,23 @@ def fetch_instruments(currency: str):
         "kind": "option",
         "expired": False
     })
-    return response.json()["result"]
+    data = response.json()
+    if "result" in data:
+        return data["result"]
+    else:
+        # 如果API返回错误，抛出异常
+        raise Exception(f"Deribit API error on get_instruments: {data.get('error')}")
 
 def fetch_greeks(instrument_name: str):
     """获取某个合约的 Greeks"""
     response = requests.get(f"{DERIBIT_BASE}/public/ticker", params={"instrument_name": instrument_name})
-    return response.json()["result"]
+    data = response.json()
+    if "result" in data:
+        return data["result"]
+    else:
+        # 忽略单个合约的错误，而不是让整个应用失败
+        print(f"Warning: Could not fetch greeks for {instrument_name}. Error: {data.get('error')}")
+        return None
 
 def get_gex_data(currency: str = "BTC"):
     instruments = fetch_instruments(currency)
@@ -25,6 +36,9 @@ def get_gex_data(currency: str = "BTC"):
     for inst in instruments:
         try:
             greeks = fetch_greeks(inst["instrument_name"])
+            if greeks is None:  # 如果获取greeks失败则跳过
+                continue
+
             gamma = greeks.get("greeks", {}).get("gamma", 0)
             size = greeks.get("open_interest", 0)
             strike = inst["strike"]
@@ -37,7 +51,8 @@ def get_gex_data(currency: str = "BTC"):
             else:
                 gex_by_strike[strike]["put_gex"] += -gex_value  # put gamma 记为负值
 
-        except Exception:
+        except Exception as e:
+            print(f"Error processing instrument {inst.get('instrument_name', 'N/A')}: {e}")
             continue
 
     # 汇总为列表并按 strike 排序
