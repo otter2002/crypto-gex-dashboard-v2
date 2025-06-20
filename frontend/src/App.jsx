@@ -39,7 +39,7 @@ const App = () => {
 
   return (
     <div className="p-4 max-w-6xl mx-auto">
-      <h1 className="text-3xl font-bold mb-6 text-center">{currency} Gamma Exposure Dashboard</h1>
+      <h1 className="text-3xl font-bold mb-6 text-center">{currency} Gamma Exposure (0DTE)</h1>
       
       <div className="mb-6 flex gap-4 justify-center items-center">
         <select 

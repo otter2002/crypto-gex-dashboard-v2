@@ -1,6 +1,7 @@
 import requests
 from collections import defaultdict
 import numpy as np
+from datetime import datetime
 
 DERIBIT_BASE = "https://www.deribit.com/api/v2"
 
@@ -45,10 +46,22 @@ def get_gex_data(currency: str = "BTC"):
     instruments = fetch_instruments(currency)
     spot_price = fetch_spot_price(currency)
     
+    # 获取今天的UTC日期以筛选当日到期 (0DTE) 的合约
+    today_utc = datetime.utcnow().date()
+    
     gex_by_strike = defaultdict(lambda: {"call_gex": 0, "put_gex": 0})
 
     for inst in instruments:
         try:
+            # 筛选当日到期的合约
+            expiration_timestamp = inst.get("expiration_timestamp")
+            if expiration_timestamp:
+                expiration_date = datetime.utcfromtimestamp(expiration_timestamp / 1000).date()
+                if expiration_date != today_utc:
+                    continue  # 如果不是今天到期，则跳过
+            else:
+                continue # 如果没有时间戳，跳过
+
             greeks = fetch_greeks(inst["instrument_name"])
             if greeks is None:  # 如果获取greeks失败则跳过
                 continue
