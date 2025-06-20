@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fetcher import fetch_full_option_book, fetch_spot_price
 from gex_calc import calculate_gex_details
 from cachetools import cached, TTLCache
+import json # Import json for pretty printing
 
 app = FastAPI()
 
@@ -23,6 +24,12 @@ def get_cached_gex_data(currency: str):
     """带缓存的数据获取函数"""
     print(f"Fetching fresh data for {currency}...")
     option_book = fetch_full_option_book(currency)
+    
+    # 打印原始数据用于调试
+    print("--- Raw Deribit Option Book ---")
+    print(json.dumps(option_book, indent=2))
+    print("-----------------------------")
+
     spot_price = fetch_spot_price(currency)
     return calculate_gex_details(option_book, spot_price)
 
