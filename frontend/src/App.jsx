@@ -13,6 +13,7 @@ const App = () => {
   const [putWall, setPutWall] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [expirationDate, setExpirationDate] = useState(null);
 
   const fetchData = async () => {
     setLoading(true);
@@ -23,6 +24,7 @@ const App = () => {
       setZeroGamma(response.data.zero_gamma);
       setCallWall(response.data.call_wall);
       setPutWall(response.data.put_wall);
+      setExpirationDate(response.data.expiration_date);
     } catch (err) {
       console.error('API Error:', err);
       setError('获取数据失败，请检查网络连接');
@@ -39,7 +41,12 @@ const App = () => {
 
   return (
     <div className="p-4 max-w-6xl mx-auto">
-      <h1 className="text-3xl font-bold mb-6 text-center">{currency} Gamma Exposure (0DTE)</h1>
+      <h1 className="text-3xl font-bold mb-2 text-center">{currency} Gamma Exposure</h1>
+      {expirationDate && (
+        <h2 className="text-xl font-semibold mb-6 text-center text-gray-600">
+          Expiration: {expirationDate}
+        </h2>
+      )}
       
       <div className="mb-6 flex gap-4 justify-center items-center">
         <select 

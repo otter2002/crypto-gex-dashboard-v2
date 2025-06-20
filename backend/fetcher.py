@@ -1,7 +1,7 @@
 import requests
 from collections import defaultdict
 import numpy as np
-from datetime import datetime
+from datetime import datetime, date
 
 DERIBIT_BASE = "https://www.deribit.com/api/v2"
 
@@ -46,24 +46,28 @@ def get_gex_data(currency: str = "BTC"):
     instruments = fetch_instruments(currency)
     spot_price = fetch_spot_price(currency)
     
-    # 获取今天的UTC日期以筛选当日到期 (0DTE) 的合约
-    today_utc = datetime.utcnow().date()
+    # 2. 找到最近的交易日
+    if not instruments:
+        return { "data": [], "zero_gamma": None, "call_wall": None, "put_wall": None, "expiration_date": None }
+
+    expirations = sorted(list(set(inst.get("expiration_timestamp") for inst in instruments)))
     
+    if not expirations:
+        return { "data": [], "zero_gamma": None, "call_wall": None, "put_wall": None, "expiration_date": None }
+
+    closest_expiration_ts = expirations[0]
+    closest_expiration_date = datetime.utcfromtimestamp(closest_expiration_ts / 1000).date()
+
     gex_by_strike = defaultdict(lambda: {"call_gex": 0, "put_gex": 0})
 
     for inst in instruments:
         try:
-            # 筛选当日到期的合约
-            expiration_timestamp = inst.get("expiration_timestamp")
-            if expiration_timestamp:
-                expiration_date = datetime.utcfromtimestamp(expiration_timestamp / 1000).date()
-                if expiration_date != today_utc:
-                    continue  # 如果不是今天到期，则跳过
-            else:
-                continue # 如果没有时间戳，跳过
+            # 3. 只处理最近到期日的合约
+            if inst.get("expiration_timestamp") != closest_expiration_ts:
+                continue
 
             greeks = fetch_greeks(inst["instrument_name"])
-            if greeks is None:  # 如果获取greeks失败则跳过
+            if greeks is None:
                 continue
 
             gamma = greeks.get("greeks", {}).get("gamma", 0)
@@ -85,13 +89,13 @@ def get_gex_data(currency: str = "BTC"):
             continue
 
     if not gex_by_strike:
-        return { "data": [], "zero_gamma": None, "call_wall": None, "put_wall": None }
+        return { "data": [], "zero_gamma": None, "call_wall": None, "put_wall": None, "expiration_date": closest_expiration_date.strftime('%Y-%m-%d') }
 
-    # 3. 汇总数据并排序
+    # 4. 汇总数据并排序
     strikes = sorted(gex_by_strike.keys())
     data = [{"strike": s, "call_gex": gex_by_strike[s]["call_gex"], "put_gex": gex_by_strike[s]["put_gex"]} for s in strikes]
 
-    # 4. 计算 Zero Gamma, Call Wall, Put Wall
+    # 5. 计算 Zero Gamma, Call Wall, Put Wall
     total_gamma_by_strike = np.array([d["call_gex"] + d["put_gex"] for d in data])
     strike_array = np.array([d["strike"] for d in data])
     
@@ -111,5 +115,6 @@ def get_gex_data(currency: str = "BTC"):
         "data": data,
         "zero_gamma": float(zero_gamma) if zero_gamma is not None else None,
         "call_wall": float(call_wall) if call_wall is not None else None,
-        "put_wall": float(put_wall) if put_wall is not None else None
+        "put_wall": float(put_wall) if put_wall is not None else None,
+        "expiration_date": closest_expiration_date.strftime('%Y-%m-%d')
     }
