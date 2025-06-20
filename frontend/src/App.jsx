@@ -85,7 +85,7 @@ const App = () => {
               >
                 <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
                 <XAxis type="number" stroke="#9ca3af" domain={['auto', 'auto']} />
-                <YAxis type="category" dataKey="strike" stroke="#9ca3af" width={80} />
+                <YAxis type="category" dataKey="strike" stroke="#9ca3af" width={80} reversed={true} />
                 <Tooltip
                   cursor={{ fill: 'rgba(156, 163, 175, 0.1)' }}
                   contentStyle={{ backgroundColor: '#1f2937', border: '1px solid #4b5563' }}
@@ -96,10 +96,10 @@ const App = () => {
                 <Bar dataKey="put_gex" fill="#EF4444" name="Put GEX" />
 
                 {/* Reference Lines */}
-                {spot_price && <ReferenceLine y={spot_price} label={{ value: `Spot: ${spot_price}`, fill: 'white', position: 'insideTopLeft' }} stroke="white" strokeDasharray="3 3" />}
+                {spot_price && <ReferenceLine x={0} y={spot_price} label={{ value: `Spot: ${spot_price.toFixed(2)}`, fill: 'white', position: 'insideTopLeft' }} stroke="white" strokeDasharray="3 3" />}
                 {zero_gamma && <ReferenceLine y={zero_gamma} label={{ value: `Zero Gamma: ${zero_gamma.toFixed(2)}`, fill: '#FBBF24', position: 'insideTopLeft' }} stroke="#FBBF24" />}
-                {call_wall && <ReferenceLine y={call_wall} label={{ value: 'Call Wall', fill: '#10B981', position: 'insideTopLeft' }} stroke="#10B981" strokeDasharray="5 5" />}
-                {put_wall && <ReferenceLine y={put_wall} label={{ value: 'Put Wall', fill: '#EF4444', position: 'insideTopLeft' }} stroke="#EF4444" strokeDasharray="5 5" />}
+                {call_wall && <ReferenceLine y={call_wall} label={{ value: `Call Wall: ${call_wall}`, fill: '#10B981', position: 'insideTopLeft' }} stroke="#10B981" strokeDasharray="5 5" />}
+                {put_wall && <ReferenceLine y={put_wall} label={{ value: `Put Wall: ${put_wall}`, fill: '#EF4444', position: 'insideTopLeft' }} stroke="#EF4444" strokeDasharray="5 5" />}
               </BarChart>
             </ResponsiveContainer>
           </div>

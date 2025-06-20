@@ -85,17 +85,31 @@ def get_gex_data(currency: str = "BTC"):
 
             gamma = greeks.get("greeks", {}).get("gamma", 0)
             oi = greeks.get("open_interest", 0) # Open Interest in contracts
+            volume = greeks.get("volume", 0) # Trading volume in contracts
             strike = inst["strike"]
             is_call = inst["option_type"] == "call"
 
-            # 2. 应用GEX计算公式 (Gamma * OI * (Spot Price)^2 * 0.01)
-            # 结果以百万美元为单位，方便图表显示
-            gex_value = gamma * oi * (spot_price**2) * 0.01 / 1_000_000
+            # 2. 应用GEX计算公式
+            # GEX by OI (in millions USD)
+            gex_by_oi_value = gamma * oi * (spot_price**2) * 0.01 / 1_000_000
+            # GEX by Volume (in millions USD)
+            gex_by_volume_value = gamma * volume * (spot_price**2) * 0.01 / 1_000_000
 
+            # Store GEX by OI
+            if "oi" not in gex_by_strike[strike]:
+                gex_by_strike[strike]["oi"] = {"call_gex": 0, "put_gex": 0}
             if is_call:
-                gex_by_strike[strike]["call_gex"] += gex_value
+                gex_by_strike[strike]["oi"]["call_gex"] += gex_by_oi_value
             else:
-                gex_by_strike[strike]["put_gex"] += -gex_value  # Put GEX 记为负值
+                gex_by_strike[strike]["oi"]["put_gex"] += -gex_by_oi_value
+            
+            # Store GEX by Volume
+            if "vol" not in gex_by_strike[strike]:
+                gex_by_strike[strike]["vol"] = {"call_gex": 0, "put_gex": 0}
+            if is_call:
+                gex_by_strike[strike]["vol"]["call_gex"] += gex_by_volume_value
+            else:
+                gex_by_strike[strike]["vol"]["put_gex"] += -gex_by_volume_value
 
         except Exception as e:
             print(f"Error processing instrument {inst.get('instrument_name', 'N/A')}: {e}")
@@ -106,28 +120,67 @@ def get_gex_data(currency: str = "BTC"):
 
     # 4. 汇总数据并排序
     strikes = sorted(gex_by_strike.keys())
-    data = [{"strike": s, "call_gex": gex_by_strike[s]["call_gex"], "put_gex": gex_by_strike[s]["put_gex"]} for s in strikes]
+    # Chart data is based on Volume, as requested
+    data = [{"strike": s, "call_gex": gex_by_strike[s]["vol"]["call_gex"], "put_gex": gex_by_strike[s]["vol"]["put_gex"]} for s in strikes]
 
-    # 5. 计算 Zero Gamma, Call Wall, Put Wall
-    total_gamma_by_strike = np.array([d["call_gex"] + d["put_gex"] for d in data])
+    # 5. 计算指标 (基于持仓量 OI)
+    total_oi_call_gex = sum(gex_by_strike[s]["oi"]["call_gex"] for s in strikes)
+    total_oi_put_gex = sum(gex_by_strike[s]["oi"]["put_gex"] for s in strikes)
+    net_oi_gex = total_oi_call_gex + total_oi_put_gex
+    call_wall = max(data, key=lambda x: x["call_gex"]) if data else None
+    if call_wall:
+        call_wall = call_wall["strike"]
+    put_wall_data = [d for d in data if d["put_gex"] != 0] # Filter out zero put gex
+    put_wall = min(put_wall_data, key=lambda x: x["put_gex"])["strike"] if put_wall_data else None
+
+    # 计算 Zero Gamma (基于持仓量 OI)
+    total_gex_by_strike = np.array([d["call_gex"] + d["put_gex"] for d in data])
     strike_array = np.array([d["strike"] for d in data])
-    
     zero_gamma = None
-    # 寻找累积Gamma最接近0的点
-    cumulative_gamma = np.cumsum(total_gamma_by_strike)
-    zero_gamma_idx = np.argmin(np.abs(cumulative_gamma))
-    if zero_gamma_idx < len(strike_array):
-        zero_gamma = strike_array[zero_gamma_idx]
-
-    # Call Wall: 正GEX最高的执行价
-    call_wall = max(data, key=lambda x: x["call_gex"])["strike"]
-    # Put Wall: 负GEX最低的执行价 (绝对值最大)
-    put_wall = min(data, key=lambda x: x["put_gex"])["strike"]
+    try:
+        sign_change_indices = np.where(np.diff(np.sign(total_gex_by_strike)))[0]
+        if len(sign_change_indices) > 0:
+            closest_flip_idx = sign_change_indices[np.argmin(np.abs(strike_array[sign_change_indices] - spot_price))]
+            x1, x2 = strike_array[closest_flip_idx], strike_array[closest_flip_idx + 1]
+            y1, y2 = total_gex_by_strike[closest_flip_idx], total_gex_by_strike[closest_flip_idx + 1]
+            if (y2 - y1) != 0:
+                zero_gamma = x1 - y1 * (x2 - x1) / (y2 - y1)
+    except Exception:
+        pass # Zero gamma calculation can fail, it's not critical
+    
+    # 6. 计算交易量指标 (GEX by Volume)
+    vol_data = [{"strike": s, "call_gex": gex_by_strike[s]["vol"]["call_gex"], "put_gex": gex_by_strike[s]["vol"]["put_gex"]} for s in strikes]
+    total_vol_call_gex = sum(d["call_gex"] for d in vol_data)
+    total_vol_put_gex = sum(d["put_gex"] for d in vol_data)
+    net_vol_gex = total_vol_call_gex + total_vol_put_gex
+    total_vol_gex_by_strike = np.array([d["call_gex"] + d["put_gex"] for d in vol_data])
+    zero_gamma_vol = None
+    try:
+        sign_change_indices_vol = np.where(np.diff(np.sign(total_vol_gex_by_strike)))[0]
+        if len(sign_change_indices_vol) > 0:
+            closest_flip_idx_vol = sign_change_indices_vol[np.argmin(np.abs(strike_array[sign_change_indices_vol] - spot_price))]
+            x1_vol, x2_vol = strike_array[closest_flip_idx_vol], strike_array[closest_flip_idx_vol + 1]
+            y1_vol, y2_vol = total_vol_gex_by_strike[closest_flip_idx_vol], total_vol_gex_by_strike[closest_flip_idx_vol + 1]
+            if (y2_vol - y1_vol) != 0:
+                zero_gamma_vol = x1_vol - y1_vol * (x2_vol - x1_vol) / (y2_vol - y1_vol)
+    except Exception:
+        pass
 
     return {
         "data": data,
+        "expiration_date": closest_expiration_date.strftime('%Y-%m-%d'),
+        
+        # GEX by Open Interest
         "zero_gamma": float(zero_gamma) if zero_gamma is not None else None,
         "call_wall": float(call_wall) if call_wall is not None else None,
         "put_wall": float(put_wall) if put_wall is not None else None,
-        "expiration_date": closest_expiration_date.strftime('%Y-%m-%d')
+        "total_oi_call_gex": total_oi_call_gex,
+        "total_oi_put_gex": total_oi_put_gex,
+        "net_oi_gex": net_oi_gex,
+
+        # GEX by Volume
+        "zero_gamma_vol": float(zero_gamma_vol) if zero_gamma_vol is not None else None,
+        "total_vol_call_gex": total_vol_call_gex,
+        "total_vol_put_gex": total_vol_put_gex,
+        "net_vol_gex": net_vol_gex
     }
