@@ -55,8 +55,8 @@ const App = () => {
   useEffect(() => {
     // 数据变化时重置domain和ticks
     setYDomain([minPrice - padding, maxPrice + padding]);
-    // 自动生成稀疏ticks
-    const tickStep = Math.max(Math.round((maxPrice - minPrice) / 8 / 1000) * 1000, 1000);
+    // 自动生成更稀疏的ticks
+    const tickStep = Math.max(Math.round((maxPrice - minPrice) / 4 / 1000) * 1000, 2000);
     const newTicks = [];
     for (let p = Math.ceil((minPrice - padding) / tickStep) * tickStep; p <= maxPrice + padding; p += tickStep) {
       newTicks.push(Math.round(p));
