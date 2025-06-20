@@ -36,6 +36,18 @@ const App = () => {
 
   const { data, spot_price, zero_gamma, call_wall, put_wall, expiration_date } = apiData || {};
 
+  // 计算所有相关价格用于Y轴domain
+  const allPrices = [
+    ...(data ? data.map(d => d.strike) : []),
+    spot_price,
+    zero_gamma,
+    call_wall,
+    put_wall
+  ].filter(v => typeof v === 'number' && !isNaN(v));
+  const minPrice = Math.min(...allPrices);
+  const maxPrice = Math.max(...allPrices);
+  const padding = (maxPrice - minPrice) * 0.1 || 1000;
+
   return (
     <div className="flex flex-col md:flex-row h-screen bg-gray-900 text-white">
       {/* Main Chart Area */}
@@ -86,7 +98,7 @@ const App = () => {
               >
                 <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
                 <XAxis type="number" stroke="#9ca3af" domain={['auto', 'auto']} />
-                <YAxis type="number" dataKey="strike" stroke="#9ca3af" width={80} reversed={true} />
+                <YAxis type="number" dataKey="strike" stroke="#9ca3af" width={80} reversed={true} domain={[minPrice - padding, maxPrice + padding]} />
                 <Tooltip
                   cursor={{ fill: 'rgba(156, 163, 175, 0.1)' }}
                   contentStyle={{ backgroundColor: '#1f2937', border: '1px solid #4b5563' }}
