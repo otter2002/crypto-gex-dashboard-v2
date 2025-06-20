@@ -17,11 +17,12 @@ const App = () => {
     setError(null);
     try {
       const response = await axios.get(`${API_BASE_URL}/gex?currency=${currency}`);
-      setApiData(response.data);
+      if (response.data && response.data.data && response.data.data.length > 0) {
+        setApiData(response.data);
+      } // 如果新数据为空，不更新apiData，继续显示旧数据
     } catch (err) {
-      console.error('API Error:', err);
       setError('Failed to fetch data. Please check the API connection.');
-      setApiData(null); // Clear old data on error
+      // 不清空apiData，继续显示旧数据
     } finally {
       setLoading(false);
     }
@@ -29,7 +30,7 @@ const App = () => {
 
   useEffect(() => {
     fetchData();
-    const interval = setInterval(fetchData, 60000); // Refresh every 60 seconds
+    const interval = setInterval(fetchData, 60000); // 1分钟刷新
     return () => clearInterval(interval);
   }, [currency]);
 

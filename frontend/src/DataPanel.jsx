@@ -54,17 +54,17 @@ const DataPanel = ({ apiData }) => {
           <DataRow label="Spot" value={spot_price} unit="USD" />
         </div>
 
-        {/* Open Interest GEX Section */}
+        {/* GEX by Open Interest (持仓量) */}
         <div>
-          <h3 className="font-bold text-lg mb-2 border-b border-gray-700 pb-1">GEX by Open Interest</h3>
+          <h3 className="font-bold text-lg mb-2 border-b border-gray-700 pb-1">GEX by Open Interest (持仓量)</h3>
           <DataRow label="Major Positive" value={total_oi_call_gex} unit="M" color="text-green-400" />
           <DataRow label="Major Negative" value={total_oi_put_gex} unit="M" color="text-red-400" />
           <DataRow label="Net GEX" value={net_oi_gex} unit="M" color={net_oi_gex > 0 ? 'text-green-400' : 'text-red-400'} />
         </div>
         
-        {/* GEX by Volume Section */}
+        {/* GEX by Volume (交易量) */}
         <div>
-          <h3 className="font-bold text-lg mb-2 border-b border-gray-700 pb-1">GEX by Volume</h3>
+          <h3 className="font-bold text-lg mb-2 border-b border-gray-700 pb-1">GEX by Volume (交易量)</h3>
           <DataRow label="Zero Gamma" value={zero_gamma_vol} />
           <DataRow label="Major Positive" value={total_vol_call_gex} unit="M" color="text-green-400" />
           <DataRow label="Major Negative" value={total_vol_put_gex} unit="M" color="text-red-400" />
