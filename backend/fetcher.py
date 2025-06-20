@@ -85,7 +85,7 @@ def get_gex_data(currency: str = "BTC"):
 
             gamma = greeks.get("greeks", {}).get("gamma", 0)
             oi = greeks.get("open_interest", 0) # Open Interest in contracts
-            volume = greeks.get("volume", 0) # Trading volume in contracts
+            volume = greeks.get("stats", {}).get("volume", 0) # Trading volume in contracts
             strike = inst["strike"]
             is_call = inst["option_type"] == "call"
 
