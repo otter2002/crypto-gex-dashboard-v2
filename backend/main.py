@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fetcher import fetch_full_option_book, fetch_spot_price
-# from gex_calc import calculate_gex_details # Temporarily disabled
+from gex_calc import calculate_gex_details
 from cachetools import cached, TTLCache
 import json # Import json for pretty printing
 
@@ -16,27 +16,36 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Use a very short cache for debugging
-cache = TTLCache(maxsize=10, ttl=5)
+# Use a cache with a 60-second TTL
+cache = TTLCache(maxsize=10, ttl=60)
 
-# @cached(cache) # Disable cache for debugging
-def get_raw_deribit_data(currency: str):
-    """A temporary function to return raw data for debugging."""
-    print(f"Fetching raw data for {currency}...")
+@cached(cache)
+def get_processed_gex_data(currency: str):
+    """
+    Fetches raw option data and spot price, then processes it to get GEX details.
+    This function is cached to avoid hitting the API too frequently.
+    """
+    print(f"Fetching fresh data for {currency}...")
     option_book = fetch_full_option_book(currency)
-    # Just return the raw data
-    return option_book
+    spot_price = fetch_spot_price(currency)
+    
+    if not option_book or spot_price is None:
+        raise Exception("Failed to fetch required data from Deribit.")
+        
+    return calculate_gex_details(option_book, spot_price)
 
 @app.get("/")
 def home():
-    return {"message": "GEX API is in DEBUG MODE"}
+    return {"message": "GEX API is operational"}
 
 @app.get("/gex")
 def gex(currency: str = "BTC"):
     """
-    DEBUGGING ENDPOINT: Returns raw data from Deribit
+    Returns calculated GEX data for a given currency.
     """
     try:
-        return get_raw_deribit_data(currency.upper())
+        return get_processed_gex_data(currency.upper())
     except Exception as e:
+        # Log the error for debugging
+        print(f"Error processing /gex request for {currency}: {e}")
         return {"error": str(e)}
