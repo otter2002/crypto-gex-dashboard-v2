@@ -68,7 +68,13 @@ const App = () => {
         
         {!apiData && loading && <div className="flex-grow flex justify-center items-center">Loading Chart...</div>}
         
-        {apiData && data && (
+        {apiData && (!data || data.length === 0) && !loading && (
+          <div className="flex-grow flex justify-center items-center text-gray-400">
+            No chart data available. The API may be fetching new data.
+          </div>
+        )}
+
+        {apiData && data && data.length > 0 && (
           <div className="flex-grow">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart

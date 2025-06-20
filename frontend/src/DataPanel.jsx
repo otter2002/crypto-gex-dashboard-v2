@@ -10,10 +10,19 @@ const DataRow = ({ label, value, unit = '', color = 'text-white', precision = 2 
 );
 
 const DataPanel = ({ apiData }) => {
-  if (!apiData || !apiData.last_update_time) {
+  if (!apiData) {
     return (
       <div className="w-full md:w-1/3 lg:w-1/4 p-4 bg-gray-800 text-white flex justify-center items-center">
         Loading data...
+      </div>
+    );
+  }
+
+  // Handle case where API returns empty data
+  if (!apiData.data || apiData.data.length === 0) {
+     return (
+      <div className="w-full md:w-1/3 lg:w-1/4 p-4 bg-gray-800 text-white flex justify-center items-center">
+        No data received. Waiting for the next update...
       </div>
     );
   }
