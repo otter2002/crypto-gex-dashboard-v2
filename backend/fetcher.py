@@ -9,7 +9,7 @@ def fetch_instruments(currency: str):
     response = requests.get(f"{DERIBIT_BASE}/public/get_instruments", params={
         "currency": currency,
         "kind": "option",
-        "expired": False
+        "expired": "false"
     })
     data = response.json()
     if "result" in data:
