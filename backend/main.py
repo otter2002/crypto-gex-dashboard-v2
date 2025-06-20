@@ -3,6 +3,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fetcher import get_gex_data, fetch_spot_price
 from cachetools import cached, TTLCache
 import json # Import json for pretty printing
+from collections import deque
+import time
 
 app = FastAPI()
 
@@ -17,6 +19,9 @@ app.add_middleware(
 
 # Use a cache with a 60-second TTL
 cache = TTLCache(maxsize=10, ttl=60)
+
+# 保存最近30分钟的快照（每分钟一条，最大32条）
+gex_history = deque(maxlen=32)
 
 @cached(cache)
 def get_processed_gex_data(currency: str):
@@ -35,6 +40,24 @@ def get_processed_gex_data(currency: str):
     gex_details["spot_price"] = spot_price
     from datetime import datetime
     gex_details["last_update_time"] = datetime.utcnow().isoformat() + "Z"
+    
+    now = time.time()
+    gex_details['timestamp'] = now
+    gex_history.append(gex_details)
+    
+    # 计算max change
+    def get_change(minutes):
+        past = [x for x in gex_history if now - x['timestamp'] >= minutes*60 and x.get('currency') == currency]
+        if past:
+            return gex_details.get('net_vol_gex') - past[-1].get('net_vol_gex')
+        return None
+    gex_details['max_change_gex'] = {
+        '1min': get_change(1),
+        '5min': get_change(5),
+        '10min': get_change(10),
+        '15min': get_change(15),
+        '30min': get_change(30),
+    }
     
     return gex_details
 

@@ -37,7 +37,8 @@ const DataPanel = ({ apiData }) => {
     zero_gamma_vol,
     net_vol_gex,
     call_wall,
-    put_wall
+    put_wall,
+    max_change_gex
   } = apiData;
 
   const updateTime = new Date(last_update_time).toLocaleTimeString();
@@ -67,14 +68,14 @@ const DataPanel = ({ apiData }) => {
           <DataRow label="Net GEX" value={net_vol_gex} unit="M" color={net_vol_gex > 0 ? 'text-green-400' : 'text-red-400'} />
         </div>
 
-        {/* Placeholder for future use */}
+        {/* Max Change GEX */}
         <div>
            <h3 className="font-bold text-lg mb-2 border-b border-gray-700 pb-1">Max Change GEX</h3>
-           <DataRow label="1 min" value={"N/A"} />
-           <DataRow label="5 min" value={"N/A"} />
-           <DataRow label="10 min" value={"N/A"} />
-           <DataRow label="15 min" value={"N/A"} />
-           <DataRow label="30 min" value={"N/A"} />
+           <DataRow label="1 min" value={max_change_gex?.['1min']} color={max_change_gex?.['1min'] > 0 ? 'text-green-400' : 'text-red-400'} />
+           <DataRow label="5 min" value={max_change_gex?.['5min']} color={max_change_gex?.['5min'] > 0 ? 'text-green-400' : 'text-red-400'} />
+           <DataRow label="10 min" value={max_change_gex?.['10min']} color={max_change_gex?.['10min'] > 0 ? 'text-green-400' : 'text-red-400'} />
+           <DataRow label="15 min" value={max_change_gex?.['15min']} color={max_change_gex?.['15min'] > 0 ? 'text-green-400' : 'text-red-400'} />
+           <DataRow label="30 min" value={max_change_gex?.['30min']} color={max_change_gex?.['30min'] > 0 ? 'text-green-400' : 'text-red-400'} />
         </div>
       </div>
     </div>

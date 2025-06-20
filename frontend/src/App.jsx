@@ -126,6 +126,7 @@ const App = () => {
                     <option value="BTC">BTC</option>
                     <option value="ETH">ETH</option>
                     <option value="SOL">SOL</option>
+                    <option value="XRP">XRP</option>
                 </select>
                 <button
                     onClick={fetchData}
@@ -143,7 +144,7 @@ const App = () => {
         
         {apiData && (!data || data.length === 0) && !loading && (
           <div className="flex-grow flex justify-center items-center text-gray-400">
-            No chart data available. The API may be fetching new data.
+            该币种暂时无期权数据。
           </div>
         )}
 
