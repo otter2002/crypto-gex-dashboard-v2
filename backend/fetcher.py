@@ -2,6 +2,7 @@ import requests
 from collections import defaultdict
 import numpy as np
 from datetime import datetime, date
+import concurrent.futures
 
 DERIBIT_BASE = "https://www.deribit.com/api/v2"
 
@@ -55,62 +56,40 @@ def fetch_greeks(instrument_name: str):
         return None
 
 def get_gex_data(currency: str = "BTC"):
-    # 1. 获取所有期权和实时现货价
     instruments = fetch_instruments(currency)
     spot_price = fetch_spot_price(currency)
-    
-    # 2. 找到最近的交易日
     if not instruments:
         return { "data": [], "zero_gamma": None, "call_wall": None, "put_wall": None, "expiration_date": None }
-
     expirations = sorted(list(set(inst.get("expiration_timestamp") for inst in instruments)))
-    
     if not expirations:
         return { "data": [], "zero_gamma": None, "call_wall": None, "put_wall": None, "expiration_date": None }
-
     closest_expiration_ts = expirations[0]
     closest_expiration_date = datetime.utcfromtimestamp(closest_expiration_ts / 1000).date()
-
-    gex_by_strike = defaultdict(lambda: {"call_gex": 0, "put_gex": 0})
-
-    for inst in instruments:
+    gex_by_strike = defaultdict(lambda: {"oi": {"call_gex": 0, "put_gex": 0}, "vol": {"call_gex": 0, "put_gex": 0}})
+    # 用并发批量抓取greeks
+    filtered_instruments = [inst for inst in instruments if inst.get("expiration_timestamp") == closest_expiration_ts]
+    with concurrent.futures.ThreadPoolExecutor(max_workers=16) as executor:
+        greeks_results = list(executor.map(
+            lambda inst: (inst, fetch_greeks(inst["instrument_name"])),
+            filtered_instruments
+        ))
+    for inst, greeks in greeks_results:
         try:
-            # 3. 只处理最近到期日的合约
-            if inst.get("expiration_timestamp") != closest_expiration_ts:
-                continue
-
-            greeks = fetch_greeks(inst["instrument_name"])
             if greeks is None:
                 continue
-
             gamma = greeks.get("greeks", {}).get("gamma", 0)
-            oi = greeks.get("open_interest", 0) # Open Interest in contracts
-            volume = greeks.get("stats", {}).get("volume", 0) # Trading volume in contracts
+            oi = greeks.get("open_interest", 0)
+            volume = greeks.get("stats", {}).get("volume", 0)
             strike = inst["strike"]
             is_call = inst["option_type"] == "call"
-
-            # 2. 应用GEX计算公式
-            # GEX by OI (in millions USD)
             gex_by_oi_value = gamma * oi * (spot_price**2) * 0.01 / 1_000_000
-            # GEX by Volume (in millions USD)
             gex_by_volume_value = gamma * volume * (spot_price**2) * 0.01 / 1_000_000
-
-            # Store GEX by OI
-            if "oi" not in gex_by_strike[strike]:
-                gex_by_strike[strike]["oi"] = {"call_gex": 0, "put_gex": 0}
             if is_call:
                 gex_by_strike[strike]["oi"]["call_gex"] += gex_by_oi_value
-            else:
-                gex_by_strike[strike]["oi"]["put_gex"] += -gex_by_oi_value
-            
-            # Store GEX by Volume
-            if "vol" not in gex_by_strike[strike]:
-                gex_by_strike[strike]["vol"] = {"call_gex": 0, "put_gex": 0}
-            if is_call:
                 gex_by_strike[strike]["vol"]["call_gex"] += gex_by_volume_value
             else:
+                gex_by_strike[strike]["oi"]["put_gex"] += -gex_by_oi_value
                 gex_by_strike[strike]["vol"]["put_gex"] += -gex_by_volume_value
-
         except Exception as e:
             print(f"Error processing instrument {inst.get('instrument_name', 'N/A')}: {e}")
             continue

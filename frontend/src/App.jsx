@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ReferenceLine, ResponsiveContainer, Legend, CartesianGrid } from "recharts";
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ReferenceLine, ResponsiveContainer, Legend, CartesianGrid, Brush } from "recharts";
 import axios from "axios";
 import DataPanel from "./DataPanel"; // Import the new panel component
 
@@ -98,7 +98,7 @@ const App = () => {
               >
                 <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
                 <XAxis type="number" stroke="#9ca3af" domain={['auto', 'auto']} />
-                <YAxis type="number" dataKey="strike" stroke="#9ca3af" width={80} reversed={true} domain={[minPrice - padding, maxPrice + padding]} />
+                <YAxis type="number" dataKey="strike" stroke="#9ca3af" width={80} reversed={true} domain={[minPrice - padding, maxPrice + padding]} allowDataOverflow={true} />
                 <Tooltip
                   cursor={{ fill: 'rgba(156, 163, 175, 0.1)' }}
                   contentStyle={{ backgroundColor: '#1f2937', border: '1px solid #4b5563' }}
@@ -113,6 +113,7 @@ const App = () => {
                 {zero_gamma && <ReferenceLine y={zero_gamma} label={{ value: `${zero_gamma.toFixed(2)}`, fill: '#FBBF24', position: 'insideTopLeft' }} stroke="#FBBF24" />}
                 {call_wall && <ReferenceLine y={call_wall} label={{ value: `${call_wall}`, fill: '#10B981', position: 'insideTopLeft' }} stroke="#10B981" strokeDasharray="5 5" />}
                 {put_wall && <ReferenceLine y={put_wall} label={{ value: `${put_wall}`, fill: '#EF4444', position: 'insideTopLeft' }} stroke="#EF4444" strokeDasharray="5 5" />}
+                <Brush dataKey="strike" height={24} stroke="#8884d8" travellerWidth={10} />
               </BarChart>
             </ResponsiveContainer>
           </div>
