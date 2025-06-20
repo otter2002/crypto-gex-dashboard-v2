@@ -51,11 +51,16 @@ def calculate_gex_details(option_book, spot_price):
     if not option_book:
         return { "data": [], "zero_gamma": None, "call_wall": None, "put_wall": None, "expiration_date": None }
 
-    expirations = sorted(list(set(inst.get("expiration_timestamp") for inst in option_book)))
+    expirations = sorted(list(set(inst.get("expiration_timestamp") for inst in option_book if inst.get("expiration_timestamp"))))
+    
     if not expirations:
         return { "data": [], "zero_gamma": None, "call_wall": None, "put_wall": None, "expiration_date": None }
 
     closest_expiration_ts = expirations[0]
+    # Add a check to ensure the timestamp is not None
+    if closest_expiration_ts is None:
+        return { "data": [], "zero_gamma": None, "call_wall": None, "put_wall": None, "expiration_date": None }
+        
     closest_expiration_date = datetime.utcfromtimestamp(closest_expiration_ts / 1000).date()
 
     # 2. 按行权价汇总GEX
