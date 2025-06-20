@@ -1,5 +1,7 @@
-fastapi
-uvicorn
 requests
 numpy
+uvicorn
+fastapi
+python-dotenv
 cachetools
+redis

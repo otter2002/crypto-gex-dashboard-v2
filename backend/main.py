@@ -3,10 +3,14 @@ from fastapi.middleware.cors import CORSMiddleware
 from fetcher import get_gex_data, fetch_spot_price
 from cachetools import cached, TTLCache
 import json # Import json for pretty printing
-from collections import deque
+import os
+import redis
 import time
 
 app = FastAPI()
+
+# Redis aclient
+redis_client = redis.from_url(os.environ.get("REDIS_URL", "redis://localhost:6379"))
 
 # ✅ 允许跨域访问，解决前端（Vercel）访问后端（Railway）被拒问题
 app.add_middleware(
@@ -17,40 +21,51 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Use a cache with a 60-second TTL
+# Cache for 60 seconds
 cache = TTLCache(maxsize=10, ttl=60)
-
-# 保存最近30分钟的快照（每分钟一条，最大32条）
-gex_history = deque(maxlen=32)
 
 @cached(cache)
 def get_processed_gex_data(currency: str):
     """
-    直接调用 fetcher.py 中完整的GEX计算逻辑。
-    这个函数被缓存以提高性能。
+    Fetches and processes GEX data, using Redis for history snapshots.
     """
     print(f"Fetching fresh GEX data for {currency}...")
-    # get_gex_data 已经包含了所有获取和计算的逻辑
     gex_details = get_gex_data(currency)
     
-    # 我们仍然可以单独获取现货价格并添加到最终结果中，以便前端使用
     spot_price = fetch_spot_price(currency)
-    
-    # 将现货价格和最后更新时间添加到结果中
     gex_details["spot_price"] = spot_price
+    
     from datetime import datetime
-    gex_details["last_update_time"] = datetime.utcnow().isoformat() + "Z"
+    now_iso = datetime.utcnow().isoformat() + "Z"
+    gex_details["last_update_time"] = now_iso
     
-    now = time.time()
-    gex_details['timestamp'] = now
-    gex_history.append(gex_details)
+    # --- Redis History Snapshot Logic ---
+    now_ts = time.time()
+    gex_details['timestamp'] = now_ts
+    gex_details['currency'] = currency # Add currency to data
+
+    # Store current snapshot in a Redis sorted set
+    history_key = f"gex_history:{currency}"
+    redis_client.zadd(history_key, {json.dumps(gex_details): now_ts})
     
-    # 计算max change
-    def get_change(minutes):
-        past = [x for x in gex_history if now - x['timestamp'] >= minutes*60 and x.get('currency') == currency]
-        if past:
-            return gex_details.get('net_vol_gex') - past[-1].get('net_vol_gex')
+    # Prune snapshots older than 35 minutes
+    redis_client.zremrangebyscore(history_key, "-inf", now_ts - (35 * 60))
+    
+    # --- Calculate Max Change GEX from Redis ---
+    def get_change(minutes_ago):
+        target_ts = now_ts - (minutes_ago * 60)
+        # Find the latest snapshot before the target time
+        past_data_list = redis_client.zrevrangebyscore(history_key, target_ts, "-inf", start=0, num=1)
+        
+        if past_data_list:
+            past_gex = json.loads(past_data_list[0])
+            current_net_gex = gex_details.get('net_vol_gex')
+            past_net_gex = past_gex.get('net_vol_gex')
+
+            if current_net_gex is not None and past_net_gex is not None:
+                return current_net_gex - past_net_gex
         return None
+
     gex_details['max_change_gex'] = {
         '1min': get_change(1),
         '5min': get_change(5),
@@ -68,10 +83,9 @@ def home():
 @app.get("/gex")
 def gex(currency: str = "BTC"):
     """
-    返回指定货币的GEX计算结果。
+    Returns calculated GEX data for a given currency.
     """
     try:
-        # 统一使用大写
         return get_processed_gex_data(currency.upper())
     except Exception as e:
         # Log the error for debugging

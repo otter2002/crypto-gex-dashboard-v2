@@ -125,8 +125,6 @@ const App = () => {
                 >
                     <option value="BTC">BTC</option>
                     <option value="ETH">ETH</option>
-                    <option value="SOL">SOL</option>
-                    <option value="XRP">XRP</option>
                 </select>
                 <button
                     onClick={fetchData}
