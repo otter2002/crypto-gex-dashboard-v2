@@ -1,18 +1,30 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 
 const DataRow = ({ label, value, unit = '', color = 'text-white', precision = 2 }) => (
-  <div className="flex justify-between items-center text-sm py-1">
+  <div className="flex justify-between items-center text-xs md:text-sm py-1">
     <span className="text-gray-400">{label}</span>
     <span className={`font-mono font-semibold ${color}`}>
-      {typeof value === 'number' ? value.toFixed(precision) : value} {unit}
+      {typeof value === 'number' ? value.toLocaleString(undefined, { maximumFractionDigits: precision }) : value} {unit}
     </span>
   </div>
 );
 
 const DataPanel = ({ apiData }) => {
+  const [isMobile, setIsMobile] = useState(false);
+
+  // 检测移动设备
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
   if (!apiData) {
     return (
-      <div className="w-full md:w-1/3 lg:w-1/4 p-4 bg-gray-800 text-white flex justify-center items-center">
+      <div className="w-full md:w-1/3 lg:w-1/4 p-2 md:p-4 bg-gray-800 text-white flex justify-center items-center text-sm">
         Loading data...
       </div>
     );
@@ -21,7 +33,7 @@ const DataPanel = ({ apiData }) => {
   // Handle case where API returns empty data
   if (!apiData.data || apiData.data.length === 0) {
      return (
-      <div className="w-full md:w-1/3 lg:w-1/4 p-4 bg-gray-800 text-white flex justify-center items-center">
+      <div className="w-full md:w-1/3 lg:w-1/4 p-2 md:p-4 bg-gray-800 text-white flex justify-center items-center text-sm">
         No data received. Waiting for the next update...
       </div>
     );
@@ -44,24 +56,24 @@ const DataPanel = ({ apiData }) => {
   const updateTime = new Date(last_update_time).toLocaleTimeString();
 
   return (
-    <div className="w-full md:w-1/3 lg:w-1/4 p-4 bg-gray-900 text-white overflow-y-auto">
-      <div className="space-y-4">
+    <div className="w-full md:w-1/3 lg:w-1/4 p-2 md:p-4 bg-gray-900 text-white overflow-y-auto">
+      <div className="space-y-3 md:space-y-4">
         {/* Update Section */}
         <div>
-          <h3 className="font-bold text-lg mb-2 border-b border-gray-700 pb-1">Update</h3>
+          <h3 className="font-bold text-base md:text-lg mb-2 border-b border-gray-700 pb-1">Update</h3>
           <DataRow label="Time" value={updateTime} />
           <DataRow label="Spot" value={spot_price} unit="USD" />
         </div>
 
         {/* GEX by Open Interest (持仓量) */}
         <div>
-          <h3 className="font-bold text-lg mb-2 border-b border-gray-700 pb-1">GEX by Open Interest (持仓量)</h3>
+          <h3 className="font-bold text-base md:text-lg mb-2 border-b border-gray-700 pb-1">GEX by Open Interest (持仓量)</h3>
           <DataRow label="Net GEX" value={net_oi_gex} unit="M" color={net_oi_gex > 0 ? 'text-green-400' : 'text-red-400'} />
         </div>
         
         {/* GEX by Volume (交易量) */}
         <div>
-          <h3 className="font-bold text-lg mb-2 border-b border-gray-700 pb-1">GEX by Volume (交易量)</h3>
+          <h3 className="font-bold text-base md:text-lg mb-2 border-b border-gray-700 pb-1">GEX by Volume (交易量)</h3>
           <DataRow label="Zero Gamma" value={zero_gamma_vol} color="text-yellow-400" />
           <DataRow label="Major Positive (Call Wall)" value={call_wall} color="text-green-400" />
           <DataRow label="Major Negative (Put Wall)" value={put_wall} color="text-red-400" />
@@ -70,7 +82,7 @@ const DataPanel = ({ apiData }) => {
 
         {/* Max Change GEX */}
         <div>
-           <h3 className="font-bold text-lg mb-2 border-b border-gray-700 pb-1">Max Change GEX</h3>
+           <h3 className="font-bold text-base md:text-lg mb-2 border-b border-gray-700 pb-1">Max Change GEX</h3>
            <DataRow label="1 min" value={max_change_gex?.['1min']} color={max_change_gex?.['1min'] > 0 ? 'text-green-400' : 'text-red-400'} />
            <DataRow label="5 min" value={max_change_gex?.['5min']} color={max_change_gex?.['5min'] > 0 ? 'text-green-400' : 'text-red-400'} />
            <DataRow label="10 min" value={max_change_gex?.['10min']} color={max_change_gex?.['10min'] > 0 ? 'text-green-400' : 'text-red-400'} />
