@@ -22,7 +22,7 @@ const CustomTooltip = ({ active, payload, label }) => {
               看跌GEX: {data.put_gex?.toLocaleString(undefined, { maximumFractionDigits: 2 })} M
             </p>
             <p className="text-gray-300 text-sm">
-              净GEX: {(data.call_gex - data.put_gex)?.toLocaleString(undefined, { maximumFractionDigits: 2 })} M
+              净GEX: {(data.call_gex + data.put_gex)?.toLocaleString(undefined, { maximumFractionDigits: 2 })} M
             </p>
           </div>
           
@@ -247,8 +247,7 @@ const App = () => {
                   left: isMobile ? 10 : 20, 
                   bottom: 5 
                 }}
-                barCategoryGap="0%"
-                barGap="0%"
+                barCategoryGap="30%"
               >
                 <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
                 <XAxis 
